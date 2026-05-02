@@ -1,85 +1,90 @@
+import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
-import React, { forwardRef, useImperativeHandle, useRef } from "react";
+import React, { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { RigidBody, CuboidCollider } from "@react-three/rapier";
+import { RigidBody, CuboidCollider } from "@react-three/rapier"; 
 import useControls from "../../hooks/useControls";
 import useGameStore from "../../store/gameStore";
-import * as THREE from "three";
 
-export const Car = forwardRef((props, ref) => {
+// ✅ No more forwardRef — just a normal component with a prop
+export const Car = ({ carBodyRef }) => {
   const rigidBodyRef = useRef();
   const { scene } = useGLTF("/models/cars/race.glb");
-  // Get live keyboard state
   const controls = useControls();
 
-  const setSpeed = useGameStore((state) => state.setSpeed);
-  const updateTimer = useGameStore((state) => state.updateTimer);
-  const gameState = useGameStore((state) => state.gameState);
-
-  useImperativeHandle(ref, () => rigidBodyRef.current);
-
-  // Track rotation manually (physics locks all rotation, we control Y ourselves)
   const rotationRef = useRef(0);
-  const prevGameState = useRef(gameState);
+  const currentTurn = useRef(0);
+  const prevGameState = useRef("menu");
 
-  // Store speed in a ref (not state!) because we update it 60x per second
-  // useState would cause 60 re-renders per second = bad performance
-  const speedRef = useRef(0);
-
-  // Physics-tuned constants (different from manual movement!)
   const MAX_SPEED = 15;
   const ACCELERATION = 0.4;
   const REVERSE_FORCE = 0.2;
   const TURN_SPEED = 0.03;
-  const BRAKE_FACTOR = 0.92; // multiply velocity by this each frame when braking
+  const BRAKE_FACTOR = 0.92;
+  const TURN_SMOOTHING = 0.1;
 
-  useFrame((state, delta) => {
+  const resetCar = () => {
     const rb = rigidBodyRef.current;
-    if (!rb) return;
+    if (!rb || !rb.setTranslation) return;
+    rb.setTranslation({ x: 30, y: 1, z: 0 }, true);
+    rb.setLinvel({ x: 0, y: 0, z: 0 }, true);
+    rb.setAngvel({ x: 0, y: 0, z: 0 }, true);
+    rotationRef.current = 0;
+    currentTurn.current = 0;
+    const resetQuat = new THREE.Quaternion();
+    resetQuat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0);
+    rb.setRotation(resetQuat, true);
+  };
 
-    // --- RESET CAR when race starts ---
+  useFrame((_, delta) => {
+    const rb = rigidBodyRef.current;
+    if (!rb || !rb.translation) return;
+
+    // ✅ SYNC ref to parent EVERY FRAME — bulletproof!
+    if (carBodyRef) {
+      carBodyRef.current = rb;
+    }
+
+    const { gameState, updateTimer, setSpeed } = useGameStore.getState();
+
+    updateTimer(delta);
+
+    // Reset car on state transitions
     if (gameState === "racing" && prevGameState.current !== "racing") {
-      rb.setTranslation({ x: 30, y: 1, z: 0 }, true);
-      rb.setLinvel({ x: 0, y: 0, z: 0 }, true);
-      rb.setAngvel({ x: 0, y: 0, z: 0 }, true);
-      rotationRef.current = 0;
-      const resetQuat = new THREE.Quaternion();
-      resetQuat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0);
-      rb.setRotation(resetQuat, true);
+      resetCar();
+    }
+    if (gameState === "menu" && prevGameState.current !== "menu") {
+      resetCar();
     }
     prevGameState.current = gameState;
 
-    // Don't move if not racing
     if (gameState !== "racing") return;
 
-    // --- CURRENT SPEED ---
     const vel = rb.linvel();
     const currentSpeed = Math.sqrt(vel.x ** 2 + vel.z ** 2);
 
-    // --- FORWARD DIRECTION (based on our manual rotation) ---
     const forward = new THREE.Vector3(
       -Math.sin(rotationRef.current),
       0,
       -Math.cos(rotationRef.current),
     );
 
-    // --- STEERING ---
+    // Smooth steering
+    let targetTurn = 0;
     if (currentSpeed > 0.5) {
-      // Dot product tells us if car moves forward or backward relative to facing
       const dot = vel.x * forward.x + vel.z * forward.z;
-
       const dir = dot >= 0 ? 1 : -1;
-
-      if (controls.left) rotationRef.current += TURN_SPEED * dir;
-      if (controls.right) rotationRef.current -= TURN_SPEED * dir;
-
-      // Apply rotation to rigid body
-      const quat = new THREE.Quaternion();
-      quat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotationRef.current);
-      rb.setRotation(quat, true);
+      if (controls.left) targetTurn = TURN_SPEED * dir;
+      if (controls.right) targetTurn = -TURN_SPEED * dir;
     }
 
-    // --- ACCELERATION (apply impulse in forward direction) ---
+    currentTurn.current += (targetTurn - currentTurn.current) * TURN_SMOOTHING;
+    rotationRef.current += currentTurn.current;
+
+    const quat = new THREE.Quaternion();
+    quat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotationRef.current);
+    rb.setRotation(quat, true);
+
     if (controls.forward) {
       rb.applyImpulse(
         { x: forward.x * ACCELERATION, y: 0, z: forward.z * ACCELERATION },
@@ -87,7 +92,6 @@ export const Car = forwardRef((props, ref) => {
       );
     }
 
-    // --- REVERSE ---
     if (controls.backward) {
       rb.applyImpulse(
         { x: -forward.x * REVERSE_FORCE, y: 0, z: -forward.z * REVERSE_FORCE },
@@ -95,7 +99,6 @@ export const Car = forwardRef((props, ref) => {
       );
     }
 
-    // --- BRAKE (reduce velocity each frame) ---
     if (controls.brake) {
       rb.setLinvel(
         { x: vel.x * BRAKE_FACTOR, y: vel.y, z: vel.z * BRAKE_FACTOR },
@@ -103,14 +106,12 @@ export const Car = forwardRef((props, ref) => {
       );
     }
 
-    // --- SPEED CAP ---
     if (currentSpeed > MAX_SPEED) {
       const factor = MAX_SPEED / currentSpeed;
       rb.setLinvel({ x: vel.x * factor, y: vel.y, z: vel.z * factor }, true);
     }
 
-    // --- UPDATE HUD ---
-    setSpeed(currentSpeed / 50); // normalize for display
+    setSpeed(currentSpeed / 50);
   });
 
   return (
@@ -126,15 +127,12 @@ export const Car = forwardRef((props, ref) => {
     >
       <CuboidCollider args={[1, 0.3, 0.6]} restitution={0.2} friction={1} />
       <group>
-        <primitive
-          object={scene}
-          scale={1.5} // adjust until it looks right
-          rotation={[0, Math.PI, 0]} // face forward along the track
-        />
+        <primitive object={scene} scale={1.5} rotation={[0, Math.PI, 0]} />
       </group>
     </RigidBody>
   );
-});
+};
+
 useGLTF.preload("/models/cars/race.glb");
 export const CustomCar = () => {
   const carRef = useRef();

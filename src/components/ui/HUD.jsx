@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useRef } from "react";
 import useGameStore from "../../store/gameStore";
 
 export default function HUD() {
@@ -6,19 +6,45 @@ export default function HUD() {
   const lap = useGameStore((state) => state.lap);
   const totalLaps = useGameStore((state) => state.totalLaps);
   const timer = useGameStore((state) => state.timer);
-  const gameState = useGameStore((state) => state.gameState); // ← moved UP
-  const startRace = useGameStore((state) => state.startRace); // ← moved UP
-  const resetGame = useGameStore((state) => state.resetGame); // ← moved UP
+  const gameState = useGameStore((state) => state.gameState);
 
   // Convert speed to a display number (like km/h feel)
   const displaySpeed = Math.abs(Math.round(speed * 500)); // ← moved UP
-
+  console.log("Store functions:", Object.keys(useGameStore.getState()));
   // Format timer
   const minutes = Math.floor(timer / 60);
   const seconds = Math.floor(timer % 60);
   const ms = Math.floor((timer % 1) * 100);
   const timeDisplay = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(ms).padStart(2, "0")}`;
 
+  // ✅ Debounce ref — prevents double-clicks
+  const isProcessing = useRef(false);
+
+  // ✅ Debounced Start
+  const handleStart = useCallback(() => {
+    if (isProcessing.current) return;
+    isProcessing.current = true;
+
+    // Call startRace directly from getState (always fresh)
+    useGameStore.getState().startRace();
+
+    setTimeout(() => {
+      isProcessing.current = false;
+    }, 1000);
+  }, []);
+
+  // ✅ Debounced Play Again
+  const handlePlayAgain = useCallback(() => {
+    if (isProcessing.current) return;
+    isProcessing.current = true;
+
+    // Use getState() — guaranteed fresh, no stale closure
+    useGameStore.getState().resetGame();
+
+    setTimeout(() => {
+      isProcessing.current = false;
+    }, 1000);
+  }, []);
   return (
     <div
       style={{
@@ -30,6 +56,7 @@ export default function HUD() {
         pointerEvents: "none", // clicks pass through to canvas
         fontFamily: "monospace",
         color: "white",
+        zIndex: 10,
       }}
     >
       {/* --- MENU SCREEN --- */}
@@ -42,7 +69,8 @@ export default function HUD() {
             justifyContent: "center",
             height: "100%",
             background: "rgba(0,0,0,0.6)",
-            pointerEvents: "auto",
+            pointerEvents: "auto", // ✅ clickable
+            zIndex: 20, // ✅ above everything
           }}
         >
           <h1 style={{ fontSize: "3rem", margin: "0 0 1rem" }}>🏎️ Car Race</h1>
@@ -50,7 +78,7 @@ export default function HUD() {
             W/S = Drive | A/D = Steer | Space = Brake
           </p>
           <button
-            onClick={startRace}
+            onClick={handleStart}
             style={{
               padding: "1rem 3rem",
               fontSize: "1.5rem",
@@ -126,7 +154,8 @@ export default function HUD() {
             justifyContent: "center",
             height: "100%",
             background: "rgba(0,0,0,0.7)",
-            pointerEvents: "auto",
+            pointerEvents: "auto", // ✅ clickable
+            zIndex: 20,
           }}
         >
           <h1 style={{ fontSize: "3rem", margin: "0" }}>🏆 RACE COMPLETE!</h1>
@@ -134,7 +163,7 @@ export default function HUD() {
             Time: {timeDisplay}
           </p>
           <button
-            onClick={resetGame}
+            onClick={handlePlayAgain}
             style={{
               padding: "1rem 3rem",
               fontSize: "1.5rem",
@@ -144,6 +173,7 @@ export default function HUD() {
               borderRadius: "8px",
               color: "white",
               fontWeight: "bold",
+              zIndex: 30,
             }}
           >
             PLAY AGAIN

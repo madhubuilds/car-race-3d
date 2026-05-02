@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { Suspense, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Sky } from "@react-three/drei";
 import { Track } from "./Track";
@@ -17,11 +17,13 @@ const Experience = () => {
       <Sky sunPosition={[100, 50, 100]} />
       <ambientLight intensity={1} />
       <directionalLight position={[10, 20, 10]} intensity={1.5} castShadow />
-      <Physics gravity={[0, -9.81, 0]}>
-        <Car ref={carRef} />
-        <Track />
-        <CheckPoint />
-      </Physics>
+      <Suspense fallback={null}>
+        <Physics gravity={[0, -9.81, 0]}>
+          <Car carBodyRef={carRef} />
+          <Track />
+          <CheckPoint />
+        </Physics>
+      </Suspense>
       <ChaseCamera carRef={carRef} />
       {/* <OrbitControls enableDamping /> */}
     </Canvas>

@@ -21,6 +21,7 @@ const useGameStore = create((set, get) => ({
       gameState: "racing",
       timer: 0,
       lap: 0,
+      speed: 0,
     }),
 
   incrementLap: () => {
@@ -38,7 +39,8 @@ const useGameStore = create((set, get) => ({
       set((state) => ({ timer: state.timer + delta }));
     }
   },
-  restGame: () =>
+
+  resetGame: () =>
     set({
       speed: 0,
       lap: 0,
