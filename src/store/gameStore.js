@@ -32,13 +32,7 @@ const useGameStore = create((set, get) => ({
     } else {
       set({ lap: newLap });
     }
-  },
-  updateTimer: (delta) => {
-    const { gameState } = get();
-    if (gameState === "racing") {
-      set((state) => ({ timer: state.timer + delta }));
-    }
-  },
+  }, 
 
   resetGame: () =>
     set({

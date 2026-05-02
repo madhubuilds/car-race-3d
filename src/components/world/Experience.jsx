@@ -18,7 +18,7 @@ const Experience = () => {
       <ambientLight intensity={1} />
       <directionalLight position={[10, 20, 10]} intensity={1.5} castShadow />
       <Suspense fallback={null}>
-        <Physics gravity={[0, -9.81, 0]}>
+        <Physics gravity={[0, -9.81, 0]} timeStep="vary">
           <Car carBodyRef={carRef} />
           <Track />
           <CheckPoint />

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { RigidBody, CuboidCollider } from "@react-three/rapier";
 import useControls from "../../hooks/useControls";
@@ -10,12 +10,24 @@ import useControlsStore from "../../store/controlsStore";
 // ✅ No more forwardRef — just a normal component with a prop
 export const Car = ({ carBodyRef }) => {
   const rigidBodyRef = useRef();
-  const { scene } = useGLTF("/models/cars/race.glb");
-  //   const { keys: controls } = useControls();
+  const { scene, nodes } = useGLTF("/models/cars/race.glb");
 
   const rotationRef = useRef(0);
   const currentTurn = useRef(0);
   const prevGameState = useRef("menu");
+
+  // Wheel refs
+  const wheelFL = useRef();
+  const wheelFR = useRef();
+  const wheelBL = useRef();
+  const wheelBR = useRef();
+  const wheelSpinRef = useRef(0);
+  const wheelSteerRef = useRef(0);
+
+  // ✅ Track timer and speed in REFS (not Zustand) to avoid re-renders
+  const timerRef = useRef(0);
+  const speedDisplayRef = useRef(0);
+  const syncCounter = useRef(0); // throttle Zustand syncs
 
   const MAX_SPEED = 15;
   const ACCELERATION = 0.4;
@@ -23,6 +35,27 @@ export const Car = ({ carBodyRef }) => {
   const TURN_SPEED = 0.03;
   const BRAKE_FACTOR = 0.92;
   const TURN_SMOOTHING = 0.1;
+  useEffect(() => {
+    if (!scene) return;
+    scene.traverse((child) => {
+      if (child.isMesh || child.isGroup) {
+        switch (child.name) {
+          case "wheel-front-left":
+            wheelFL.current = child;
+            break;
+          case "wheel-front-right":
+            wheelFR.current = child;
+            break;
+          case "wheel-back-left":
+            wheelBL.current = child;
+            break;
+          case "wheel-back-right":
+            wheelBR.current = child;
+            break;
+        }
+      }
+    });
+  }, [scene]);
 
   const resetCar = () => {
     const rb = rigidBodyRef.current;
@@ -32,6 +65,9 @@ export const Car = ({ carBodyRef }) => {
     rb.setAngvel({ x: 0, y: 0, z: 0 }, true);
     rotationRef.current = 0;
     currentTurn.current = 0;
+    wheelSpinRef.current = 0;
+    wheelSteerRef.current = 0;
+    timerRef.current = 0;
     const resetQuat = new THREE.Quaternion();
     resetQuat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0);
     rb.setRotation(resetQuat, true);
@@ -46,12 +82,16 @@ export const Car = ({ carBodyRef }) => {
       carBodyRef.current = rb;
     }
 
-    const { gameState, updateTimer, setSpeed } = useGameStore.getState();
+    // ✅ Read state WITHOUT triggering set()
+    const { gameState } = useGameStore.getState();
     const controls = useControlsStore.getState();
 
-    updateTimer(delta);
+    // ✅ Accumulate timer in REF (no Zustand set)
+    if (gameState === "racing") {
+      timerRef.current += delta;
+    }
 
-    // Reset car on state transitions
+    // Reset on state transitions
     if (gameState === "racing" && prevGameState.current !== "racing") {
       resetCar();
     }
@@ -73,11 +113,19 @@ export const Car = ({ carBodyRef }) => {
 
     // Smooth steering
     let targetTurn = 0;
+    let steerDirection = 0;
     if (currentSpeed > 0.5) {
       const dot = vel.x * forward.x + vel.z * forward.z;
       const dir = dot >= 0 ? 1 : -1;
-      if (controls.left) targetTurn = TURN_SPEED * dir;
-      if (controls.right) targetTurn = -TURN_SPEED * dir;
+
+      if (controls.left) {
+        targetTurn = TURN_SPEED * dir;
+        steerDirection = 1; // ✅ turning left
+      }
+      if (controls.right) {
+        targetTurn = -TURN_SPEED * dir;
+        steerDirection = -1; // ✅ turning right
+      }
     }
 
     currentTurn.current += (targetTurn - currentTurn.current) * TURN_SMOOTHING;
@@ -113,7 +161,46 @@ export const Car = ({ carBodyRef }) => {
       rb.setLinvel({ x: vel.x * factor, y: vel.y, z: vel.z * factor }, true);
     }
 
-    setSpeed(currentSpeed / 50);
+    //Store speed in ref
+    speedDisplayRef.current = currentSpeed / 50;
+
+    // ✅ THROTTLED SYNC: Only update Zustand every 5 frames (~12 times/sec)
+    // This prevents re-renders during physics step
+    syncCounter.current++;
+    if (syncCounter.current >= 5) {
+      syncCounter.current = 0;
+
+      // Use setTimeout to push set() OUTSIDE the physics step
+      const t = timerRef.current;
+      const s = speedDisplayRef.current;
+      setTimeout(() => {
+        useGameStore.setState({ timer: t, speed: s });
+      }, 0);
+    }
+
+    // =============================================
+
+    // =====================
+    // WHEEL ANIMATIONS
+    // =====================
+    const dot = vel.x * forward.x + vel.z * forward.z;
+    const spinDirection = dot >= 0 ? -1 : 1;
+    const spinAmount = currentSpeed * delta * 3;
+    wheelSpinRef.current += spinAmount * spinDirection;
+
+    if (wheelFL.current) wheelFL.current.rotation.x = wheelSpinRef.current;
+    if (wheelFR.current) wheelFR.current.rotation.x = wheelSpinRef.current;
+    if (wheelBL.current) wheelBL.current.rotation.x = wheelSpinRef.current;
+    if (wheelBR.current) wheelBR.current.rotation.x = wheelSpinRef.current;
+
+    const MAX_STEER_ANGLE = 0.4;
+    const targetSteer = steerDirection * MAX_STEER_ANGLE;
+    const STEER_SMOOTHING = 0.15;
+    wheelSteerRef.current +=
+      (targetSteer - wheelSteerRef.current) * STEER_SMOOTHING;
+
+    if (wheelFL.current) wheelFL.current.rotation.y = wheelSteerRef.current;
+    if (wheelFR.current) wheelFR.current.rotation.y = wheelSteerRef.current;
   });
 
   return (
