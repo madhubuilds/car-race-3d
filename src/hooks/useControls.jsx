@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import useControlsStore from "../store/controlsStore";
 
 export default function useControls() {
+  const setControl = useControlsStore((state) => state.setControl);
   // Track which keys are currently pressed
   const [keys, setKeys] = useState({
     forward: false, // W or ArrowUp
@@ -29,14 +31,14 @@ export default function useControls() {
       if (control) {
         // Prevent page scrolling when pressing arrow keys
         e.preventDefault();
-        setKeys((prev) => ({ ...prev, [control]: true }));
+        setControl(control, true);
       }
     };
 
     const handleKeyUp = (e) => {
       const control = keyMap[e.code];
       if (control) {
-        setKeys((prev) => ({ ...prev, [control]: false }));
+        setControl(control, false);
       }
     };
 
@@ -48,7 +50,18 @@ export default function useControls() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, []);
+  }, [setControl]);
 
-  return keys;
+  // --- TOUCH INPUT ---
+  const touchStart = useCallback(
+    (control) => setControl(control, true),
+    [setControl],
+  );
+
+  const touchEnd = useCallback(
+    (control) => setControl(control, false),
+    [setControl],
+  );
+
+  return { touchStart, touchEnd };
 }

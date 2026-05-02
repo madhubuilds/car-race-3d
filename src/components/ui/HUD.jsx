@@ -1,5 +1,8 @@
 import React, { useCallback, useRef } from "react";
 import useGameStore from "../../store/gameStore";
+import useIsMobile from "../../hooks/useIsMobile";
+import useControls from "../../hooks/useControls";
+import TouchControls from "./TouchControls";
 
 export default function HUD() {
   const speed = useGameStore((state) => state.speed);
@@ -7,10 +10,13 @@ export default function HUD() {
   const totalLaps = useGameStore((state) => state.totalLaps);
   const timer = useGameStore((state) => state.timer);
   const gameState = useGameStore((state) => state.gameState);
+  const isMobile = useIsMobile();
+
+  // ✅ Get touch handlers from the shared controls hook
+  const { touchStart, touchEnd } = useControls();
 
   // Convert speed to a display number (like km/h feel)
   const displaySpeed = Math.abs(Math.round(speed * 500)); // ← moved UP
-  console.log("Store functions:", Object.keys(useGameStore.getState()));
   // Format timer
   const minutes = Math.floor(timer / 60);
   const seconds = Math.floor(timer % 60);
@@ -75,8 +81,11 @@ export default function HUD() {
         >
           <h1 style={{ fontSize: "3rem", margin: "0 0 1rem" }}>🏎️ Car Race</h1>
           <p style={{ fontSize: "1.2rem", marginBottom: "2rem" }}>
-            W/S = Drive | A/D = Steer | Space = Brake
+            {isMobile
+              ? "Use on-screen buttons to drive!"
+              : "W/S = Drive | A/D = Steer | Space = Brake"}
           </p>
+
           <button
             onClick={handleStart}
             style={{
@@ -102,7 +111,7 @@ export default function HUD() {
           <div
             style={{
               position: "absolute",
-              bottom: "40px",
+              bottom: isMobile ? "220px" : "40px",
               left: "50%",
               transform: "translateX(-50%)",
               textAlign: "center",
@@ -121,7 +130,7 @@ export default function HUD() {
               top: "20px",
               left: "50%",
               transform: "translateX(-50%)",
-              fontSize: "2rem",
+              fontSize: isMobile ? "1.3rem" : "2rem",
               fontWeight: "bold",
               textShadow: "2px 2px 4px rgba(0,0,0,0.8)",
             }}
@@ -135,12 +144,17 @@ export default function HUD() {
               position: "absolute",
               top: "20px",
               right: "30px",
-              fontSize: "1.5rem",
+              fontSize: isMobile ? "1rem" : "1.5rem",
               textShadow: "2px 2px 4px rgba(0,0,0,0.8)",
             }}
           >
             🏁 Lap {lap + 1}/{totalLaps}
           </div>
+
+          {/* ✅ Touch Controls — only on mobile */}
+          {isMobile && (
+            <TouchControls touchStart={touchStart} touchEnd={touchEnd} />
+          )}
         </>
       )}
 
@@ -158,15 +172,20 @@ export default function HUD() {
             zIndex: 20,
           }}
         >
-          <h1 style={{ fontSize: "3rem", margin: "0" }}>🏆 RACE COMPLETE!</h1>
-          <p style={{ fontSize: "2rem", margin: "1rem 0" }}>
+          <h1 style={{ fontSize: isMobile ? "2rem" : "3rem", margin: "0" }}>
+            🏆 RACE COMPLETE!
+          </h1>
+          <p
+            style={{ fontSize: isMobile ? "1.5rem" : "2rem", margin: "1rem 0" }}
+          >
             Time: {timeDisplay}
           </p>
           <button
             onClick={handlePlayAgain}
             style={{
-              padding: "1rem 3rem",
-              fontSize: "1.5rem",
+              padding: isMobile ? "0.8rem 2rem" : "1rem 3rem",
+              fontSize: isMobile ? "1.2rem" : "1.5rem",
+
               cursor: "pointer",
               background: "#0066ff",
               border: "none",

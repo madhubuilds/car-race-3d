@@ -2,15 +2,16 @@ import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
 import React, { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { RigidBody, CuboidCollider } from "@react-three/rapier"; 
+import { RigidBody, CuboidCollider } from "@react-three/rapier";
 import useControls from "../../hooks/useControls";
 import useGameStore from "../../store/gameStore";
+import useControlsStore from "../../store/controlsStore";
 
 // ✅ No more forwardRef — just a normal component with a prop
 export const Car = ({ carBodyRef }) => {
   const rigidBodyRef = useRef();
   const { scene } = useGLTF("/models/cars/race.glb");
-  const controls = useControls();
+  //   const { keys: controls } = useControls();
 
   const rotationRef = useRef(0);
   const currentTurn = useRef(0);
@@ -46,6 +47,7 @@ export const Car = ({ carBodyRef }) => {
     }
 
     const { gameState, updateTimer, setSpeed } = useGameStore.getState();
+    const controls = useControlsStore.getState();
 
     updateTimer(delta);
 
