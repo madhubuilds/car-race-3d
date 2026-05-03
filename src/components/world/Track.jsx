@@ -31,7 +31,11 @@ export const Track = () => {
       {/* A thin white box placed across the track */}
       <mesh position={[30, 0.05, 0]} rotation={[0, 0, 0]}>
         <boxGeometry args={[10, 0.1, 2]} />
-        <meshStandardMaterial color="white" />
+        <meshStandardMaterial
+          color="white"
+          emissive="#ffffff"
+          emissiveIntensity={0.3}
+        />
       </mesh>
 
       {/* -------- LAYER 4: Inner Wall -------- */}
@@ -45,7 +49,12 @@ export const Track = () => {
       >
         <mesh position={[0, 0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <torusGeometry args={[25, 0.5, 8, 64]} />
-          <meshStandardMaterial color="#ff4444" /> {/* red barrier */}
+          <meshStandardMaterial
+            color="#ff4444"
+            emissive="#ff2222" // glow color
+            emissiveIntensity={0.8} // glow strength
+          />{" "}
+          {/* red barrier */}
         </mesh>
       </RigidBody>
 
@@ -58,7 +67,11 @@ export const Track = () => {
       >
         <mesh position={[0, 0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <torusGeometry args={[35, 0.5, 8, 64]} />
-          <meshStandardMaterial color="#ff4444" />
+          <meshStandardMaterial
+            color="#ff4444"
+            emissive="#ff2222"
+            emissiveIntensity={0.8}
+          />
         </mesh>
       </RigidBody>
     </group>

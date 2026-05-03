@@ -86,6 +86,11 @@ export const Car = ({ carBodyRef }) => {
     const { gameState } = useGameStore.getState();
     const controls = useControlsStore.getState();
 
+    // ✅ Reset car when countdown starts (positions car at start)
+    if (gameState === "countdown" && prevGameState.current === "menu") {
+      resetCar();
+    }
+
     // ✅ Accumulate timer in REF (no Zustand set)
     if (gameState === "racing") {
       timerRef.current += delta;

@@ -16,12 +16,19 @@ const useGameStore = create((set, get) => ({
   //   Actions
   setSpeed: (speed) => set({ speed }),
 
+  // ✅ START now goes to "countdown" first, not "racing"
   startRace: () =>
     set({
-      gameState: "racing",
+      gameState: "countdown",
       timer: 0,
       lap: 0,
       speed: 0,
+    }),
+
+  // ✅ Called after countdown finishes
+  beginRacing: () =>
+    set({
+      gameState: "racing",
     }),
 
   incrementLap: () => {
@@ -32,7 +39,7 @@ const useGameStore = create((set, get) => ({
     } else {
       set({ lap: newLap });
     }
-  }, 
+  },
 
   resetGame: () =>
     set({

@@ -4,8 +4,9 @@ import useIsMobile from "../../hooks/useIsMobile";
 import useControls from "../../hooks/useControls";
 import TouchControls from "./TouchControls";
 import Minimap from "./Minimap";
+import Countdown from "./Countdown";
 
-export default function HUD({carBodyRef}) {
+export default function HUD({ carBodyRef }) {
   const speed = useGameStore((state) => state.speed);
   const lap = useGameStore((state) => state.lap);
   const totalLaps = useGameStore((state) => state.totalLaps);
@@ -108,7 +109,47 @@ export default function HUD({carBodyRef}) {
       {/* --- RACING HUD --- */}
       {gameState === "racing" && (
         <>
-          {/* Speed - bottom center */}
+          {/* ✅ SPEED LINES — full screen overlay, SEPARATE from speed display */}
+          {displaySpeed > 80 && (
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                pointerEvents: "none",
+                background: `radial-gradient(
+            ellipse at center,
+            transparent 60%,
+            rgba(255, 255, 255, ${Math.min((displaySpeed - 80) / 200, 0.15)}) 100%
+          )`,
+                zIndex: 5,
+              }}
+            />
+          )}
+
+          {/* ✅ RED TINT — full screen overlay */}
+          {displaySpeed > 150 && (
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                pointerEvents: "none",
+                background: `radial-gradient(
+            ellipse at center,
+            transparent 50%,
+            rgba(255, 0, 0, ${Math.min((displaySpeed - 150) / 500, 0.1)}) 100%
+          )`,
+                zIndex: 5,
+              }}
+            />
+          )}
+
+          {/* ✅ SPEED — bottom center */}
           <div
             style={{
               position: "absolute",
@@ -116,6 +157,7 @@ export default function HUD({carBodyRef}) {
               left: "50%",
               transform: "translateX(-50%)",
               textAlign: "center",
+              zIndex: 10,
             }}
           >
             <div style={{ fontSize: "3rem", fontWeight: "bold" }}>
@@ -152,10 +194,51 @@ export default function HUD({carBodyRef}) {
             🏁 Lap {lap + 1}/{totalLaps}
           </div>
 
-          {/* ✅ Touch Controls — only on mobile */}
+          {/* Touch Controls */}
           {isMobile && (
             <TouchControls touchStart={touchStart} touchEnd={touchEnd} />
           )}
+
+          <Minimap carBodyRef={carBodyRef} />
+        </>
+      )}
+
+      {/* ✅ Also show HUD during countdown (so player sees the track) */}
+      {gameState === "countdown" && (
+        <>
+          {/* Timer shows 00:00.00 */}
+          <div
+            style={{
+              position: "absolute",
+              top: "20px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              fontSize: "2rem",
+              fontWeight: "bold",
+              fontFamily: "monospace",
+              color: "white",
+              textShadow: "2px 2px 4px rgba(0,0,0,0.8)",
+            }}
+          >
+            ⏱️ 00:00.00
+          </div>
+
+          {/* Laps */}
+          <div
+            style={{
+              position: "absolute",
+              top: "20px",
+              right: "20px",
+              fontSize: "1.5rem",
+              fontFamily: "monospace",
+              color: "white",
+              textShadow: "2px 2px 4px rgba(0,0,0,0.8)",
+            }}
+          >
+            🏁 Lap 1/{totalLaps}
+          </div>
+
+          {/* Minimap */}
           <Minimap carBodyRef={carBodyRef} />
         </>
       )}
@@ -201,6 +284,7 @@ export default function HUD({carBodyRef}) {
           </button>
         </div>
       )}
+      <Countdown />
     </div>
   );
 }
