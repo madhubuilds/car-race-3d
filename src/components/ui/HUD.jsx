@@ -3,8 +3,9 @@ import useGameStore from "../../store/gameStore";
 import useIsMobile from "../../hooks/useIsMobile";
 import useControls from "../../hooks/useControls";
 import TouchControls from "./TouchControls";
+import Minimap from "./Minimap";
 
-export default function HUD() {
+export default function HUD({carBodyRef}) {
   const speed = useGameStore((state) => state.speed);
   const lap = useGameStore((state) => state.lap);
   const totalLaps = useGameStore((state) => state.totalLaps);
@@ -155,6 +156,7 @@ export default function HUD() {
           {isMobile && (
             <TouchControls touchStart={touchStart} touchEnd={touchEnd} />
           )}
+          <Minimap carBodyRef={carBodyRef} />
         </>
       )}
 

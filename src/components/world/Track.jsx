@@ -1,8 +1,5 @@
 import React from "react";
-import {
-  RigidBody, 
-  CuboidCollider,
-} from "@react-three/rapier";
+import { RigidBody, CuboidCollider } from "@react-three/rapier";
 
 export const Track = () => {
   return (
@@ -11,7 +8,11 @@ export const Track = () => {
       {/* A big flat plane to act as the grass field */}
       {/* rotation: [-Math.PI / 2, 0, 0] flips it flat (default planes face the camera, we want it on the floor) */}
       <RigidBody type="fixed" colliders={false}>
-        <CuboidCollider args={[250, 0.1, 250]} position={[0, -0.2, 0]} />
+        <CuboidCollider
+          args={[250, 0.1, 250]}
+          position={[0, -0.2, 0]}
+          friction={0.8}
+        />
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.1, 0]}>
           <planeGeometry args={[100, 100]} />
           <meshBasicMaterial color="#4a7c2e" />
@@ -36,7 +37,12 @@ export const Track = () => {
       {/* -------- LAYER 4: Inner Wall -------- */}
       {/* TorusGeometry(radius, tubeThickness, radialSegments, tubularSegments) */}
       {/* trimesh = auto-generates collider from the mesh shape */}
-      <RigidBody type="fixed" colliders="trimesh">
+      <RigidBody
+        type="fixed"
+        colliders="trimesh"
+        friction={0} // ✅ SLIPPERY — car slides along
+        restitution={0.5} // ✅ BOUNCY — pushes car away
+      >
         <mesh position={[0, 0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <torusGeometry args={[25, 0.5, 8, 64]} />
           <meshStandardMaterial color="#ff4444" /> {/* red barrier */}
@@ -44,7 +50,12 @@ export const Track = () => {
       </RigidBody>
 
       {/* -------- LAYER 4: Outer Wall -------- */}
-      <RigidBody type="fixed" colliders="trimesh">
+      <RigidBody
+        type="fixed"
+        colliders="trimesh"
+        friction={0} // ✅ SLIPPERY
+        restitution={0.5} // ✅ BOUNCY
+      >
         <mesh position={[0, 0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <torusGeometry args={[35, 0.5, 8, 64]} />
           <meshStandardMaterial color="#ff4444" />

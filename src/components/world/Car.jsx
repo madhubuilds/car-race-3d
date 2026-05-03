@@ -114,6 +114,7 @@ export const Car = ({ carBodyRef }) => {
     // Smooth steering
     let targetTurn = 0;
     let steerDirection = 0;
+
     if (currentSpeed > 0.5) {
       const dot = vel.x * forward.x + vel.z * forward.z;
       const dir = dot >= 0 ? 1 : -1;
@@ -130,6 +131,37 @@ export const Car = ({ carBodyRef }) => {
 
     currentTurn.current += (targetTurn - currentTurn.current) * TURN_SMOOTHING;
     rotationRef.current += currentTurn.current;
+
+    // --- WALL UNSTICK ---
+    // If speed is very low but player is pressing forward/backward,
+    // give an extra push away from the wall
+    if (currentSpeed < 1 && (controls.forward || controls.backward)) {
+      // Read current position
+      const pos = rb.translation();
+
+      // Calculate distance from track center (0,0)
+      const distFromCenter = Math.sqrt(pos.x ** 2 + pos.z ** 2);
+
+      // Track is between radius 25 (inner) and 35 (outer)
+      const trackCenter = 30; // middle of track
+
+      // Push toward track center if near a wall
+      if (distFromCenter < 26.5 || distFromCenter > 33.5) {
+        // Direction from car toward track center ring
+        const pushAngle = Math.atan2(-pos.x, -pos.z);
+        const pushDir = distFromCenter < trackCenter ? 1 : -1; // push outward or inward
+
+        const pushForce = 0.8;
+        rb.applyImpulse(
+          {
+            x: Math.sin(pushAngle) * pushForce * pushDir,
+            y: 0,
+            z: Math.cos(pushAngle) * pushForce * pushDir,
+          },
+          true,
+        );
+      }
+    }
 
     const quat = new THREE.Quaternion();
     quat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotationRef.current);
@@ -214,7 +246,25 @@ export const Car = ({ carBodyRef }) => {
       enabledRotations={[false, false, false]}
       position={[30, 1, 0]}
     >
-      <CuboidCollider args={[1, 0.3, 0.6]} restitution={0.2} friction={1} />
+      {/* Main body collider — reduced friction */}
+      <CuboidCollider args={[0.9, 0.3, 0.5]} restitution={0.3} friction={0.3} />
+
+      {/* Front bumper — slippery, bouncy → slides off walls */}
+      <CuboidCollider
+        args={[0.1, 0.2, 0.4]}
+        position={[1, 0, 0]}
+        restitution={0.5}
+        friction={0}
+      />
+
+      {/* Rear bumper — same */}
+      <CuboidCollider
+        args={[0.1, 0.2, 0.4]}
+        position={[-1, 0, 0]}
+        restitution={0.5}
+        friction={0}
+      />
+
       <group>
         <primitive object={scene} scale={1.5} rotation={[0, Math.PI, 0]} />
       </group>
